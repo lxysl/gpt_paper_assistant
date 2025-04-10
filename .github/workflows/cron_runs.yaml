@@ -29,10 +29,11 @@ jobs:
         OAI_KEY: ${{ secrets.OAI_KEY }}
         SLACK_KEY: ${{ secrets.SLACK_KEY }}
         SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+        WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
       run: |
         python main.py
     - name: Upload results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: arxiv-scanner-outputs
         path: out/

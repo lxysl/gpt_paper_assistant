@@ -1,6 +1,9 @@
 import json
 from datetime import datetime
+import re
 
+link_prefix = 'user-content-'
+topic_shift = 1000
 
 def render_paper(paper_entry: dict, idx: int) -> str:
     """
@@ -14,60 +17,151 @@ def render_paper(paper_entry: dict, idx: int) -> str:
     title = paper_entry["title"]
     # get the arxiv url
     arxiv_url = f"https://arxiv.org/abs/{arxiv_id}"
+    arxiv_pdf_url = f"https://arxiv.org/pdf/{arxiv_id}.pdf"
     # get the abstract
     abstract = paper_entry["abstract"]
     # get the authors
     authors = paper_entry["authors"]
-    paper_string = f'## {idx}. [{title}]({arxiv_url}) <a id="link{idx}"></a>\n'
-    paper_string += f"**ArXiv ID:** {arxiv_id}\n"
+    paper_string = f'### {idx}\. [{title}]({arxiv_url})\n'
+    paper_string += f"**ArXiv:** {arxiv_id} [[page]({arxiv_url})] [[pdf]({arxiv_pdf_url})]\n\n"
     paper_string += f'**Authors:** {", ".join(authors)}\n\n'
     paper_string += f"**Abstract:** {abstract}\n\n"
     if "COMMENT" in paper_entry:
         comment = paper_entry["COMMENT"]
-        paper_string += f"**Comment:** {comment}\n"
+        paper_string += f"**Comment:** {comment}\n\n"
     if "RELEVANCE" in paper_entry and "NOVELTY" in paper_entry:
         # get the relevance and novelty scores
         relevance = paper_entry["RELEVANCE"]
         novelty = paper_entry["NOVELTY"]
         paper_string += f"**Relevance:** {relevance}\n"
         paper_string += f"**Novelty:** {novelty}\n"
-    return paper_string + "\n---\n"
+    topic_id = idx // topic_shift 
+    topic_str = f'topic-{topic_id}' if topic_id else 'go-beyond'
+    paper_string += f"Back to [[topic](#{link_prefix}{topic_str})] [[top](#{link_prefix}topics)]\n"
+    return paper_string
 
 
 def render_title_and_author(paper_entry: dict, idx: int) -> str:
+    # get the arxiv id
+    arxiv_id = paper_entry["arxiv_id"]
+    # get the title
     title = paper_entry["title"]
+    # get the arxiv url
+    arxiv_url = f"https://arxiv.org/abs/{arxiv_id}"
     authors = paper_entry["authors"]
-    paper_string = f"{idx}. [{title}](#link{idx})\n"
+    
+    raw_title_url = f'{idx} {title}'
+    # Keep only English letters, numbers, and spaces
+    cleaned = re.sub(r'[^a-zA-Z0-9 -]', '', raw_title_url)
+    
+    # Replace spaces with dashes
+    cleaned = cleaned.replace(' ', '-').lower()
+    paper_string = f'{idx}\. [{title}]({arxiv_url}) [[more](#{link_prefix}{cleaned})] \\\n'
     paper_string += f'**Authors:** {", ".join(authors)}\n'
     return paper_string
 
 
+def render_criteria(criteria: list[str]) -> str:
+    criteria_string = ""
+    for criterion in criteria:
+        topic_idx = int(criterion.split('.')[0])
+        criteria_string += f"[{criterion}](#{link_prefix}topic-{topic_idx})\n\n"
+    criteria_string += f'[Go beyond](#{link_prefix}go-beyond)\n\n'
+    return criteria_string
+
+def extract_criterion_from_paper(paper_entry: dict) -> int:
+    if "COMMENT" not in paper_entry:
+        return 0
+    # Regular expression pattern to find 'criterion' followed by a number
+    pattern = r'riteri(.+?) (\d+)'
+    # Search for the pattern in the text
+    match = re.search(pattern, paper_entry["COMMENT"])
+    if match:
+        # Extract the number (group 1 in the match)
+        criterion_number = match.group(2)
+        return int(criterion_number)
+    else:
+        return 0 # not sure
+
+def render_md_paper_title_by_topic(topic, paper_in_topic: list[str]) -> str: 
+    return f"### {topic}\n" +  "\n".join(paper_in_topic) + f"\n\nBack to [[top](#{link_prefix}topics)]\n\n---\n"
+        
+
 def render_md_string(papers_dict):
     # header
     with open("configs/paper_topics.txt", "r") as f:
-        criterion = f.read()
+        criteria = f.readlines()
+        
+    filtered_criteria = [i for i in criteria if len(i.strip()) and i.strip()[0] in '0123456789']
+    
+    criteria_string = render_criteria(filtered_criteria)
+        
+    import random
+    def generate_background_for_white_foreground(threshold:int=150):
+        # Ensure that the color is dark enough for white text to be readable
+        # by keeping the RGB values below a certain threshold (e.g., 200)
+        r = random.randint(0, threshold)
+        g = random.randint(0, threshold)
+        b = random.randint(0, threshold)
+
+        # Convert the RGB values to a hexadecimal string
+        hex_color = f'{r:02x}{g:02x}{b:02x}'
+        return hex_color
+        
+    random_font = random.sample(['Cookie', 'Lato', 'Arial', 'Comic', 'Inter', 'Bree', 'Poppins'], 1)[0]
+    random_emoji = random.sample("😸😺🐱🐶🐼🐰🐥🐢🐣🌸🍀🌈☀️🍓🍦🍪🐻🦊🦄🐣🐤🐦🐧🦉🐸🐞🦋🐝🍄🌻🌷🌼🌺🌿🍃🍒🍑🍍🍉🍌🍫🍬🍭🍯🍼🧸🎀🎈🎉🛀🎁💐💖💕💞💓💗💘💝💟💌🎊🍩🍨🍧🍡🍖🍗🍕🍔🍟🌭🍿🍱🍣🍤🍥🍚🍙🍘🍜🍝🍛🍢🍵🍶🥂🥤🍹🍺🍻🥃🍷🥄🍴🍽🥢🥡🥪🥗🥘🥓🥞🥐🥖🥨🥯🥚🥦🥒🥑🥔🥕🥗🥝🥭🥥🥬🥪🥫🥟🥠🥡🥢🥣🥤🥧🥨🥩🥪🥫🥬🥭🥮", 1)[0]
+     
     output_string = (
         "# Personalized Daily Arxiv Papers "
         + datetime.today().strftime("%m/%d/%Y")
-        + "\nTotal relevant papers: "
-        + str(len(papers_dict))
-        + "\n\n"
-        + "Paper selection prompt and criteria at the bottom\n\n"
-        + "Table of contents with paper titles:\n\n"
+        + "\n\nThis project is adapted from [tatsu-lab/gpt_paper_assistant](https://github.com/tatsu-lab/gpt_paper_assistant). The source code of this project is at [Variante/gpt_paper_assistant](https://github.com/Variante/gpt_paper_assistant)\n\n"
+        + "About me on [Bilibili](https://space.bilibili.com/823532). Help keep the website running:\n\n"
+        + f"""<a href="https://www.buymeacoffee.com/Variante"><img src="https://img.buymeacoffee.com/button-api/?text=Help cover GPT-4 cost&emoji={random_emoji}&slug=Variante&button_colour={generate_background_for_white_foreground()}&font_colour=ffffff&font_family={random_font}&outline_colour=000000&coffee_colour=FFDD00" /></a>\n"""
+        + "\n\n## Topics\n\nPaper selection prompt and criteria (jump to the section by clicking the link):\n\n"
+        + criteria_string
+        + "\n---\n"
+        # + "## All\n Total relevant papers: "
+        # + str(len(papers_dict))
+        # + "\n\n"
+        # + "Table of contents with paper titles:\n\n"
     )
+    '''
     title_strings = [
         render_title_and_author(paper, i)
         for i, paper in enumerate(papers_dict.values())
     ]
-    output_string = output_string + "\n".join(title_strings) + "\n---\n"
+    # output_string = output_string + "\n".join(title_strings) + "\n---\n"
+    '''
+    # render each topic
+    paper_title_group_by_topic = [[] for _ in range(len(filtered_criteria) + 1)]
+    paper_full_group_by_topic = [[] for _ in range(len(filtered_criteria) + 1)]
+    for i, paper in enumerate(papers_dict.values()):
+        paper_topic_idx = extract_criterion_from_paper(paper)
+        if paper_topic_idx > len(filtered_criteria):
+            paper_topic_idx = 0
+        title_string = render_title_and_author(paper, i + paper_topic_idx * topic_shift)
+        paper_title_group_by_topic[paper_topic_idx].append(title_string)
+        full_string = render_paper(paper, i + paper_topic_idx * topic_shift)
+        paper_full_group_by_topic[paper_topic_idx].append(full_string)
+        
+    for topic_idx, paper_in_topic in enumerate(paper_title_group_by_topic):
+        if topic_idx == 0:
+            # unknown topic
+            continue
+        output_string += render_md_paper_title_by_topic(f'Topic {topic_idx}', paper_in_topic) 
+    output_string += render_md_paper_title_by_topic("Go beyond", paper_title_group_by_topic[0])
+
+    """
     # render each paper
     paper_strings = [
         render_paper(paper, i) for i, paper in enumerate(papers_dict.values())
     ]
+    """
+    paper_string = "\n---\n".join(["\n".join(paper_in_topic) for paper_in_topic in paper_full_group_by_topic[1:] + paper_full_group_by_topic[:1] if len(paper_in_topic)])
     # join all papers into one string
-    output_string = output_string + "\n".join(paper_strings)
-    output_string += "\n\n---\n\n"
-    output_string += f"## Paper selection prompt\n{criterion}"
+    output_string += f"## Full paper list\n {paper_string}"
+    # output_string += "\n\n---\n\n"
+    # output_string += f"## Paper selection prompt\n{criterion}"
     return output_string
 
 

@@ -10,6 +10,7 @@ from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
 from arxiv_scraper import Paper
+from parse_json_to_md import extract_criterion_from_paper, topic_shift
 
 T = TypeVar("T")
 
@@ -37,24 +38,29 @@ def send_main_message(block_list: List, channel_id, client):
         print(f"Error: {e}")
 
 
-def send_thread(block_list: List, channel_id, thread_id, client):
-    try:
-        batches = batched(block_list, 50)
-        # Call the conversations.list method using the WebClient
-        for batch in batches:
-            result = client.chat_postMessage(
-                thread_ts=thread_id,
-                text="Arxiv full update",
-                channel=channel_id,
-                blocks=batch,
-                unfurl_links=False,
-                # You could also use a blocks[] array to send richer content
-            )
-            # Print result, which includes information about the message (like TS)
-            print(result)
+def send_thread(batches: List[List], channel_id, thread_id, client):
+    
+    for batch in batches:
+        if len(batch) < 3:
+            continue
+        try:
+            # batches = batched(block_list, 50)
+            # Call the conversations.list method using the WebClient
+            smaller_batch = batched(batch[1:], 49)
+            for sb in smaller_batch:
+                result = client.chat_postMessage(
+                    thread_ts=thread_id,
+                    text=batch[0]['text']['text'],
+                    channel=channel_id,
+                    blocks=batch[:1] + sb,
+                    unfurl_links=False,
+                    # You could also use a blocks[] array to send richer content
+                )
+                # Print result, which includes information about the message (like TS)
+            # print(result)
 
-    except SlackApiError as e:
-        print(f"Error: {e}")
+        except SlackApiError as e:
+            print(f"Error: {e}")
 
 
 def render_paper(paper_entry: Paper, counter: int) -> str:
@@ -125,8 +131,16 @@ def render_title(paper_entry: Paper, counter: int) -> str:
     paper_string += f'*Authors*: {", ".join(authors)}\n\n'
     return paper_string
 
+def render_topic_block(title):
+    return {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*Topic: {title.strip()}*"
+            }  
+    }
 
-def build_block_list(title_strings, paper_strings):
+def build_block_list(title_strings, paper_strings, topic_ids):
     """
     builds a list of slack-bot blocks from a list of markdown formatted papers
     """
@@ -143,25 +157,42 @@ def build_block_list(title_strings, paper_strings):
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": "Total relevant papers (max 50 in thread): "
+                "text": "Web: https://variante.github.io/gpt_paper_assistant/"
+            }  
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "Total relevant papers (grouped by topic in thread): "
                 + str(len(title_strings))
-                + "\n Top 10 titles shown below",
+                + "\n First title in each topic shown below",
             },
         },
         {"type": "divider"},
     ]
 
-    for paper in title_strings[:10]:
+    covered_topic = set()
+    for topic, paper in zip(topic_ids, title_strings):
+        if topic in covered_topic:
+            continue
         slack_block_list.append(
             {"type": "section", "text": {"type": "mrkdwn", "text": paper}}
         )
+        covered_topic.add(topic)
+    
+    with open("configs/paper_topics.txt", "r") as f:
+        criteria = f.readlines()
+        
+    filtered_criteria = [i for i in criteria if len(i.strip()) and i.strip()[0] in '0123456789']
 
-    thread_blocks = []
-    for paper in paper_strings[:50]:
-        thread_blocks.append(
+    thread_blocks = [[render_topic_block(i)] for i in filtered_criteria]
+    thread_blocks.insert(0, [render_topic_block("GPT thinks you may like:")])
+    for topic, paper in zip(topic_ids, paper_strings):
+        thread_blocks[topic].append(
             {"type": "section", "text": {"type": "mrkdwn", "text": paper}}
         )
-        thread_blocks.append({"type": "divider"})
+        thread_blocks[topic].append({"type": "divider"})
 
     return slack_block_list, thread_blocks
 
@@ -172,13 +203,19 @@ def push_to_slack(papers_dict):
     # render each paper
     if len(papers_dict) == 0:
         return
+    topic_ids = [
+        extract_criterion_from_paper(paper) for paper in papers_dict.values()
+    ]
+    
     title_strings = [
-        render_title(paper, i) for i, paper in enumerate(papers_dict.values())
+        render_title(paper, i + topic_shift * topic_ids[i]) for i, paper in enumerate(papers_dict.values())
     ]
     paper_strings = [
-        render_paper(paper, i) for i, paper in enumerate(papers_dict.values())
+        render_paper(paper, i + topic_shift * topic_ids[i]) for i, paper in enumerate(papers_dict.values())
     ]
-    blocks, thread_blocks = build_block_list(title_strings, paper_strings)
+    
+    
+    blocks, thread_blocks = build_block_list(title_strings, paper_strings, topic_ids)
     # push to slack
     ts = send_main_message(blocks, channel_id, client)
     send_thread(thread_blocks, channel_id, ts, client)

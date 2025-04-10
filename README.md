@@ -5,7 +5,10 @@ It will run daily via github actions and can post this information to slack via 
 
 A simple demo of the daily papers can be seen [here](https://tatsu-lab.github.io/gpt_paper_assistant/) running on `cs.CL`
 
-As a cost estimate, running this on all of `cs.CL, LG, AI` cost about $0.7 ($0.5 for `cs.LG`, $0.2 for `cs.CL`) on 11/12/2023
+As a cost estimate, running this on all of `cs.CL` cost $0.07 on 2/7/2024
+
+## Changelog
+- **2/7/2024**: fixed a critical issue from ArXiv changing their RSS format. Added and enabled a title filtering to reduce costs.
 
 
 ## Quickstart
@@ -28,6 +31,9 @@ At this point your bot should run daily and publish a static website. You can te
 7. Make a channel for the bot (and invite it to the channel), get its [Slack channel id](https://stackoverflow.com/questions/40940327/what-is-the-simplest-way-to-find-a-slack-team-id-and-a-channel-id), set it as `SLACK_CHANNEL_ID` in a github secret.
 8. Take a look at `configs/config.ini` to tweak how things are filtered.
 9. Set the github repo private to avoid github actions being [set to inactive after 60 days](https://docs.github.com/en/actions/using-workflows/disabling-and-enabling-a-workflow)
+
+10. **Set up a google chat bot** create a chat space and get the `WEBHOOK_URL` from `Space setting -> App & integrations -> Webhooks`, set it to `WEBHOOK_URL` as a github secret
+11. Take a look at `configs/config.ini` to enable `push_to_google`.
 
 Each day at 1pm UTC, the bot will run and post to slack and publish a github pages website (see the publish_md and cron_runs actions for details).
 

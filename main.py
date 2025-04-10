@@ -14,6 +14,7 @@ from filter_papers import filter_by_author, filter_by_gpt
 from parse_json_to_md import render_md_string
 from push_to_slack import push_to_slack
 from arxiv_scraper import EnhancedJSONEncoder
+from push_to_google_chat import push_to_google_chat
 
 T = TypeVar("T")
 
@@ -142,8 +143,8 @@ def get_authors(
             auth_map = get_one_author(session, author, S2_API_KEY)
             if auth_map is not None:
                 author_metadata_dict[author] = auth_map
-            # add a 10ms wait time to avoid rate limiting
-            time.sleep(0.01)
+            # add a 1s wait time to avoid rate limiting
+            time.sleep(1)
     return author_metadata_dict
 
 
@@ -253,3 +254,13 @@ if __name__ == "__main__":
                 )
             else:
                 push_to_slack(selected_papers)
+
+        # only push to google chat for non-empty dicts
+        if config["OUTPUT"].getboolean("push_to_google"):
+            WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
+            if WEBHOOK_URL is None:
+                print(
+                    "Warning: push_to_google is true, but WEBHOOK_URL is not set - not pushing to google chat"
+                )
+            else:
+                push_to_google_chat(selected_papers)
