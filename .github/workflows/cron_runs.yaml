@@ -30,6 +30,7 @@ jobs:
         SLACK_KEY: ${{ secrets.SLACK_KEY }}
         SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
         WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+        BASE_URL: ${{ secrets.BASE_URL }}
       run: |
         python main.py
     - name: Upload results

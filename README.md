@@ -22,7 +22,7 @@ This is the minimal necessary steps to get the scanner to run. It is highly reco
 4. Set your desired ArXiv categories in `config/config.ini`.
 5. Set your openai key (`OAI_KEY`) as ``a [github secret](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions#creating-secrets-for-a-repository)
 6. In your repo settings, set github page build sources to be [github actions](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site#publishing-with-a-custom-github-actions-workflow)
-
+7. Set the `BASE_URL` environment variable to `https://api.openai.com/v1` if you are using the openai api, or otherwise the base url of the openai alternative you are using.
 At this point your bot should run daily and publish a static website. You can test this by running the github action workflow manually.
 
 **Optional but highly recommended**: 
@@ -41,7 +41,7 @@ Each day at 1pm UTC, the bot will run and post to slack and publish a github pag
 
 The steps are generally the same as above, but you have to set up the environment via `requirements.txt`
 
-Instead of passing credentials via github secrets, you have to set environment variables `OAI_KEY`, `SLACK_KEY`, `SLACK_CHANNEL_ID`.
+Instead of passing credentials via github secrets, you have to set environment variables `OAI_KEY`, `SLACK_KEY`, `SLACK_CHANNEL_ID`, and `BASE_URL`.
 
 To run everything, just call `main.py`
 

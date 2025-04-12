@@ -1,7 +1,48 @@
- 1. New methodological improvements to self-supervised learning in computer vision.
-    - Relevant: papers that propose new self-supervised approaches for images, aiming to improve existing methods, or analyzing them. Usually these papers will mention a pretext task used to pretrain the neural networks resulting in higher performance when fine-tuing on the down-stream tasks.
-    - Not relevant: papers that apply existing self-supervised learning to computer vision tasks in the specific field, such as medical images, remote sensing, pedestrian re-identification and so on.
-
- In suggesting papers to your friend, remember that he enjoys papers on statistical machine learning, and generative modeling in natural language processing.
- Your friend also likes learning about surprising empirical results in language models, as well as clever statistical tricks.
- He does not want to read papers that are about primarily applications of methods to specific domains.
+1.	Multimodal Large Language Models
+   - Relevant:
+   Evolution of important MLLM series (GPT, LLaVA, Qwen-VL, Deepseek-VL, Claude, Gemini, Grok, Kimi-VL, InternVL, etc.).
+   Novel architectures or training paradigms that handle and understand multiple modalities (images, text, audio, video, etc.), showing significant performance improvements or unique capabilities in downstream tasks.
+   Research exploring multimodal alignment and cross-modal feature modeling, along with more efficient training/inference mechanisms for unified large models.
+   Models capable of both “understanding” and “generating” content (native multimodality), or that explicitly perform multi-step reasoning (e.g., Chain-of-Thought) during inference.
+   - Not Relevant:
+   Work focusing on just a single modality or merely fine-tuning an existing multimodal model on specialized datasets (e.g., medical, remote sensing, super-resolution, etc.) with small performance gains and no substantive advancement in the core concept of multimodal modeling.
+2.	Large Language Models
+   - Relevant:
+   Evolution of important LLM series (GPT, LLaMA, Qwen, Deepseek, Claude, Gemini, Grok, Kimi, GLM, InternLM, etc.).
+   Novel approaches to pre-training, instruction tuning, alignment, RLHF (DPO, PPO, GRPO, etc.), or inference-time reasoning for LLMs, especially new insights into how they process or generate content.
+   Methods to integrate LLMs with other modalities (visual, audio, video, etc.), introducing innovative datasets, evaluation protocols, or extended architectural components.
+   Analytical and interpretability-focused studies on how LLMs perform in multimodal settings, including improvements to training and inference efficiency.
+   - Not Relevant:
+   Work dealing exclusively with standard NLP tasks (e.g., finance, law, sentiment analysis, machine translation) that lacks core innovations in model mechanisms or multimodal integration.
+3.	Self-Supervised Learning and Vision-Language Pre-training
+   - Relevant:
+   Novel objectives, architectures, or training strategies for self-supervised learning on multimodal data (vision-language, audio-language, etc.) that yield significant breakthroughs or new representational insights.
+   Large-scale vision-language pre-training initiatives that demonstrate robust performance or new discoveries across various downstream tasks (multimodal question answering, generation, etc.).
+   - Not Relevant:
+   Straightforward applications of existing self-supervised methods to niche datasets (medical, remote sensing, etc.) with only incremental performance gains, lacking generalizable or methodological innovation.
+4.	Reinforcement Learning in Large or Multimodal Models & Reasoning During Inference
+   - Relevant:
+   Methods enhancing the reasoning or planning capabilities of large models (e.g., advanced chain-of-thought, tree-of-thought, tool use integration), using RL (like RLHF or RLAIF) for improving model alignment, controllability, or helpfulness, research on intrinsic motivation or exploration driven by large models, and studies on integrating deliberation or "thinking time" during inference.
+   - Not Relevant:
+   Generic RL algorithms (DQN, PPO, etc.) applied to specific scenarios (e.g., autonomous driving, healthcare robotics) without leveraging or advancing the capabilities of large or multimodal models in any meaningful way.
+5.	Evaluation Sets and Datasets for Multimodal Large Models
+   - Relevant:
+   Creation of new datasets and benchmarking frameworks for assessing the understanding, generation, or interaction capabilities of multimodal large models, accompanied by robust metrics and analyses.
+   Evaluations probing emergent behaviors or alignment and safety aspects in multimodal settings, offering comparisons or in-depth investigations of model performance.
+   - Not Relevant:
+   Standard single-modality datasets or benchmarks with no direct relevance to multimodal scenarios, lacking tasks that challenge multimodal large models in meaningful ways.
+6.	AI Agents & Embodied Intelligence (especially involving LLMs/MLLMs)
+   - Relevant:
+   Papers presenting architectures for autonomous agents powered by LLMs or MLLMs, frameworks for integrating perception, reasoning, planning, and action using large models, research on learning from interaction in simulated or real environments (Embodied AI), grounding language or multimodal inputs in actions.
+   Keywords: AI agent, embodied AI, LLM agent, VLM agent, robotics, decision making, interactive learning.
+   - Not Relevant:
+   Traditional robotics or control papers that do not leverage large foundation models.
+   Simulation platforms or hardware descriptions unless tightly coupled with a novel agent architecture or learning paradigm.
+   Highly specialized robotic task solutions (e.g., optimizing grasp for a specific object) that don't involve significant LLM/VLM integration or general principles.
+7.	Image Generation (Diffusion, Autoregressive, Tokenizer, etc.)
+   - Relevant:
+   Foundational advances in generative model architectures (diffusion, autoregressive, GANs, VAEs, flow-based) specifically for image synthesis. Improvements in training stability, sample quality, diversity, controllability (e.g., text-to-image, layout control), or computational efficiency (inference/training speed) of image generation models.
+   Novel image tokenization schemes (e.g., VQ-VAE variants) relevant to generative modeling.
+   - Not Relevant:
+   Applications of existing generative models to specific domains like medical imaging, remote sensing, super-resolution, de-raining/de-hazing, style transfer for artistic purposes, unless they introduce a fundamental change to the generation algorithm itself. 
+   Papers focusing purely on downstream applications or minor conditional variations without core model innovation. 

@@ -181,11 +181,15 @@ if __name__ == "__main__":
 
     S2_API_KEY = os.environ.get("S2_KEY")
     OAI_KEY = os.environ.get("OAI_KEY")
+    BASE_URL = os.environ.get("BASE_URL")
+    if BASE_URL is None:
+        print("Warning: BASE_URL is not set - using default openai base url")
+        BASE_URL = "https://api.openai.com/v1"
     if OAI_KEY is None:
         raise ValueError(
             "OpenAI key is not set - please set OAI_KEY to your OpenAI key"
         )
-    openai_client = OpenAI(api_key=OAI_KEY)
+    openai_client = OpenAI(api_key=OAI_KEY, base_url=BASE_URL)
     # load the author list
     with io.open("configs/authors.txt", "r") as fopen:
         author_names, author_ids = parse_authors(fopen.readlines())

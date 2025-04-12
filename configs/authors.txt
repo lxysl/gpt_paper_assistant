@@ -1,5 +1,8 @@
-# Some robotics people.
-Peter R. Florence, 47686265
-Andy Zeng, 38591293
-Shuran Song, 3340170
+Kaiming He, 39353098
+Lecun Yann, 1688882
+Saining Xie, 1817030
 Weidi Xie, 10096695
+Dahua Lin, 1807606
+Yu Qiao, 143970608
+Chaoyou Fu, 50876245
+Jiaya Jia, 1729056

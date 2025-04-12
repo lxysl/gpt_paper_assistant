@@ -23,7 +23,7 @@ def render_paper(paper_entry: dict, idx: int) -> str:
     # get the authors
     authors = paper_entry["authors"]
     paper_string = f'### {idx}\. [{title}]({arxiv_url})\n'
-    paper_string += f"**ArXiv:** {arxiv_id} [[page]({arxiv_url})] [[pdf]({arxiv_pdf_url})]\n\n"
+    paper_string += f"**ArXiv:** {arxiv_id} [[page]({arxiv_url})] [[pdf]({arxiv_pdf_url})] [[kimi](https://papers.cool/arxiv/kimi?paper={arxiv_id})]\n\n"
     paper_string += f'**Authors:** {", ".join(authors)}\n\n'
     paper_string += f"**Abstract:** {abstract}\n\n"
     if "COMMENT" in paper_entry:
@@ -114,9 +114,7 @@ def render_md_string(papers_dict):
     output_string = (
         "# Personalized Daily Arxiv Papers "
         + datetime.today().strftime("%m/%d/%Y")
-        + "\n\nThis project is adapted from [tatsu-lab/gpt_paper_assistant](https://github.com/tatsu-lab/gpt_paper_assistant). The source code of this project is at [Variante/gpt_paper_assistant](https://github.com/Variante/gpt_paper_assistant)\n\n"
-        + "About me on [Bilibili](https://space.bilibili.com/823532). Help keep the website running:\n\n"
-        + f"""<a href="https://www.buymeacoffee.com/Variante"><img src="https://img.buymeacoffee.com/button-api/?text=Help cover GPT-4 cost&emoji={random_emoji}&slug=Variante&button_colour={generate_background_for_white_foreground()}&font_colour=ffffff&font_family={random_font}&outline_colour=000000&coffee_colour=FFDD00" /></a>\n"""
+        + "\n\nThis project is adapted from [tatsu-lab/gpt_paper_assistant](https://github.com/tatsu-lab/gpt_paper_assistant). The source code of this project is at [lxysl/gpt_paper_assistant](https://github.com/lxysl/gpt_paper_assistant)\n\n"
         + "\n\n## Topics\n\nPaper selection prompt and criteria (jump to the section by clicking the link):\n\n"
         + criteria_string
         + "\n---\n"

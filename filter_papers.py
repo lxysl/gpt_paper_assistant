@@ -51,15 +51,15 @@ def filter_papers_by_hindex(all_authors, papers, config):
     return paper_list
 
 
-def calc_price(model, usage):
-    if model == 'gpt-4o':
-        return (5 * usage.prompt_tokens + 15 * usage.completion_tokens) / 1e6
-    if model in ["gpt-4-1106-preview", "gpt-4-0125-preview", "gpt-4-turbo-preview"]:
-        return (10 * usage.prompt_tokens + 30 * usage.completion_tokens) / 1e6
-    if model == "gpt-4":
-        return (30 * usage.prompt_tokens + 60 * usage.completion_tokens) / 1e6
-    if model.startswith("gpt-3.5"):
-        return (0.5 * usage.prompt_tokens + 1.5 * usage.completion_tokens) / 1e6
+def calc_token_usage(usage):
+    """
+    返回输入和输出的token计数，而不是计算美元成本
+    """
+    return {
+        "prompt_tokens": usage.prompt_tokens,
+        "completion_tokens": usage.completion_tokens,
+        "total_tokens": usage.prompt_tokens + usage.completion_tokens
+    }
 
 
 @retry.retry(tries=3, delay=2)
@@ -94,7 +94,7 @@ def run_and_parse_chatgpt(full_prompt, openai_client, config):
                 print("RAW output")
                 print(completion.choices[0].message.content)
             continue
-    return json_dicts, calc_price(config["SELECTION"]["model"], completion.usage)
+    return json_dicts, calc_token_usage(completion.usage)
 
 
 def paper_to_string(paper_entry: Paper) -> str:
@@ -126,7 +126,8 @@ def filter_papers_by_title(
     filter_postfix = 'Identify any papers that are absolutely and completely irrelavent to the criteria, and you are absolutely sure your friend will not enjoy, formatted as a list of arxiv ids like ["ID1", "ID2", "ID3"..]. Be extremely cautious, and if you are unsure at all, do not add a paper in this list. You will check it in detail later.\n Directly respond with the list, do not add ANY extra text before or after the list. Even if every paper seems irrelevant, please keep at least TWO papers'
     batches_of_papers = batched(papers, 20)
     final_list = []
-    cost = 0
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
     for batch in batches_of_papers:
         papers_string = "".join([paper_to_titles(paper) for paper in batch])
         full_prompt = (
@@ -134,7 +135,9 @@ def filter_papers_by_title(
         )
         model = config["SELECTION"]["model"]
         completion = call_chatgpt(full_prompt, openai_client, model)
-        cost += calc_price(model, completion.usage)
+        token_usage = calc_token_usage(completion.usage)
+        total_prompt_tokens += token_usage["prompt_tokens"]
+        total_completion_tokens += token_usage["completion_tokens"]
         out_text = completion.choices[0].message.content
         try:
             filtered_set = set(json.loads(out_text))
@@ -148,7 +151,7 @@ def filter_papers_by_title(
             print("Failed to parse LM output as list " + out_text)
             print(completion)
             continue
-    return final_list, cost
+    return final_list, {"prompt_tokens": total_prompt_tokens, "completion_tokens": total_completion_tokens, "total_tokens": total_prompt_tokens + total_completion_tokens}
 
 
 def paper_to_titles(paper_entry: Paper) -> str:
@@ -167,9 +170,8 @@ def run_on_batch(
             postfix_prompt,
         ]
     )
-    json_dicts, cost = run_and_parse_chatgpt(full_prompt, openai_client, config)
-    if cost is None: cost = 0
-    return json_dicts, cost
+    json_dicts, token_usage = run_and_parse_chatgpt(full_prompt, openai_client, config)
+    return json_dicts, token_usage
 
 
 def filter_by_gpt(
@@ -182,7 +184,8 @@ def filter_by_gpt(
         criterion = f.read()
     with open("configs/postfix_prompt.txt", "r") as f:
         postfix_prompt = f.read()
-    all_cost = 0
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
     if config["SELECTION"].getboolean("run_openai"):
         # filter first by hindex of authors to reduce costs.
         paper_list = filter_papers_by_hindex(all_authors, papers, config)
@@ -191,26 +194,27 @@ def filter_by_gpt(
             paper_list = papers[:]
         if config["OUTPUT"].getboolean("debug_messages"):
             print(str(len(paper_list)) + " papers after hindex filtering")
-        paper_list, cost = filter_papers_by_title(
+        paper_list, token_usage = filter_papers_by_title(
             paper_list, config, openai_client, base_prompt, criterion
         )
         if config["OUTPUT"].getboolean("debug_messages"):
             print(
                 str(len(paper_list))
-                + " papers after title filtering with cost of $"
-                + str(cost)
+                + f" papers after title filtering with token usage: {token_usage['prompt_tokens']} prompt tokens, {token_usage['completion_tokens']} completion tokens"
             )
-        all_cost += cost
+        total_prompt_tokens += token_usage["prompt_tokens"]
+        total_completion_tokens += token_usage["completion_tokens"]
 
         # batch the remaining papers and invoke GPT
         batch_of_papers = batched(paper_list, int(config["SELECTION"]["batch_size"]))
         scored_batches = []
         for batch in tqdm(batch_of_papers):
             scored_in_batch = []
-            json_dicts, cost = run_on_batch(
+            json_dicts, token_usage = run_on_batch(
                 batch, base_prompt, criterion, postfix_prompt, openai_client, config
             )
-            all_cost += cost
+            total_prompt_tokens += token_usage["prompt_tokens"]
+            total_completion_tokens += token_usage["completion_tokens"]
             for jdict in json_dicts:
                 if (
                     int(jdict["RELEVANCE"])
@@ -236,7 +240,7 @@ def filter_by_gpt(
             ) as outfile:
                 json.dump(scored_batches, outfile, cls=EnhancedJSONEncoder, indent=4)
         if config["OUTPUT"].getboolean("debug_messages"):
-            print("Total cost: $" + str(all_cost))
+            print(f"Total token usage: {total_prompt_tokens} prompt tokens, {total_completion_tokens} completion tokens")
 
 
 if __name__ == "__main__":
@@ -273,12 +277,14 @@ if __name__ == "__main__":
     all_papers = {}
     paper_outputs = {}
     sort_dict = {}
-    total_cost = 0
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
     for batch in tqdm(papers):
-        json_dicts, cost = run_on_batch(
+        json_dicts, token_usage = run_on_batch(
             batch, base_prompt, criterion, postfix_prompt, openai_client, config
         )
-        total_cost += cost
+        total_prompt_tokens += token_usage["prompt_tokens"]
+        total_completion_tokens += token_usage["completion_tokens"]
         for paper in batch:
             all_papers[paper.arxiv_id] = paper
         for jdict in json_dicts:
@@ -289,7 +295,7 @@ if __name__ == "__main__":
             sort_dict[jdict["ARXIVID"]] = jdict["RELEVANCE"] + jdict["NOVELTY"]
 
         # sort the papers by relevance and novelty
-    print("total cost:" + str(total_cost))
+    print(f"Total token usage: {total_prompt_tokens} prompt tokens, {total_completion_tokens} completion tokens")
     keys = list(sort_dict.keys())
     values = list(sort_dict.values())
 
