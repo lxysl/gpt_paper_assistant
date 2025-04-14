@@ -23,7 +23,7 @@ def render_paper(paper_entry: dict, idx: int) -> str:
     # get the authors
     authors = paper_entry["authors"]
     paper_string = f'### {idx}\. [{title}]({arxiv_url})\n'
-    paper_string += f"**ArXiv:** {arxiv_id} [[page]({arxiv_url})] [[pdf]({arxiv_pdf_url})] [[kimi](https://papers.cool/arxiv/kimi?paper={arxiv_id})]\n\n"
+    paper_string += f"**ArXiv:** {arxiv_id} [[page]({arxiv_url})] [[pdf]({arxiv_pdf_url})] [[kimi](https://papers.cool/arxiv/{arxiv_id})]\n\n"
     paper_string += f'**Authors:** {", ".join(authors)}\n\n'
     paper_string += f"**Abstract:** {abstract}\n\n"
     if "COMMENT" in paper_entry:
