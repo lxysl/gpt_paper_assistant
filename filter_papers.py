@@ -120,6 +120,38 @@ def batched(items, batch_size):
     return [items[i : i + batch_size] for i in range(0, len(items), batch_size)]
 
 
+def limit_papers_by_score(papers_dict, sort_dict, max_papers=100):
+    """
+    Limit the number of papers to max_papers by keeping only the highest-scoring ones.
+    This prevents the GitHub.io page from exceeding 400KB and failing to render.
+
+    Args:
+        papers_dict: Dictionary mapping paper IDs to paper data
+        sort_dict: Dictionary mapping paper IDs to scores
+        max_papers: Maximum number of papers to keep
+
+    Returns:
+        Dictionary with at most max_papers papers, keeping the highest-scoring ones
+    """
+    if len(papers_dict) <= max_papers:
+        return papers_dict
+
+    # Sort papers by score in descending order
+    keys = list(sort_dict.keys())
+    values = list(sort_dict.values())
+
+    def argsort(seq):
+        return sorted(range(len(seq)), key=seq.__getitem__)
+
+    sorted_indices = argsort(values)[::-1]  # Descending order
+    top_keys = [keys[idx] for idx in sorted_indices[:max_papers]]
+
+    # Create a new dictionary with only the top papers
+    limited_papers = {key: papers_dict[key] for key in top_keys}
+
+    return limited_papers
+
+
 def filter_papers_by_title(
     papers, config, openai_client, base_prompt, criterion
 ) -> List[Paper]:
@@ -234,6 +266,12 @@ def filter_by_gpt(
                     }
                 )
             scored_batches.append(scored_in_batch)
+        # Limit the number of papers to 100 to prevent GitHub.io page from exceeding 400KB
+        limited_papers = limit_papers_by_score(selected_papers, sort_dict)
+        # Update the selected_papers dictionary with the limited set
+        selected_papers.clear()
+        selected_papers.update(limited_papers)
+
         if config["OUTPUT"].getboolean("dump_debug_file"):
             with open(
                 config["OUTPUT"]["output_path"] + "gpt_paper_batches.debug.json", "w"
@@ -241,6 +279,7 @@ def filter_by_gpt(
                 json.dump(scored_batches, outfile, cls=EnhancedJSONEncoder, indent=4)
         if config["OUTPUT"].getboolean("debug_messages"):
             print(f"Total token usage: {total_prompt_tokens} prompt tokens, {total_completion_tokens} completion tokens")
+            print(f"Limited papers from {len(sort_dict)} to {len(selected_papers)} to prevent GitHub.io page from exceeding 400KB")
 
 
 if __name__ == "__main__":
@@ -304,6 +343,10 @@ if __name__ == "__main__":
 
     sorted_keys = [keys[idx] for idx in argsort(values)[::-1]]
     selected_papers = {key: paper_outputs[key] for key in sorted_keys}
+
+    # Limit the number of papers to 100 to prevent GitHub.io page from exceeding 400KB
+    selected_papers = limit_papers_by_score(selected_papers, sort_dict)
+    print(f"Limited papers from {len(sort_dict)} to {len(selected_papers)} to prevent GitHub.io page from exceeding 400KB")
 
     with open(
         config["OUTPUT"]["output_path"] + "filter_paper_test.debug.json", "w"

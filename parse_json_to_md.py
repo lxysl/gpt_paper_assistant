@@ -35,7 +35,7 @@ def render_paper(paper_entry: dict, idx: int) -> str:
         novelty = paper_entry["NOVELTY"]
         paper_string += f"**Relevance:** {relevance}\n"
         paper_string += f"**Novelty:** {novelty}\n"
-    topic_id = idx // topic_shift 
+    topic_id = idx // topic_shift
     topic_str = f'topic-{topic_id}' if topic_id else 'go-beyond'
     paper_string += f"Back to [[topic](#{link_prefix}{topic_str})] [[top](#{link_prefix}topics)]\n"
     return paper_string
@@ -49,11 +49,11 @@ def render_title_and_author(paper_entry: dict, idx: int) -> str:
     # get the arxiv url
     arxiv_url = f"https://arxiv.org/abs/{arxiv_id}"
     authors = paper_entry["authors"]
-    
+
     raw_title_url = f'{idx} {title}'
     # Keep only English letters, numbers, and spaces
     cleaned = re.sub(r'[^a-zA-Z0-9 -]', '', raw_title_url)
-    
+
     # Replace spaces with dashes
     cleaned = cleaned.replace(' ', '-').lower()
     paper_string = f'{idx}\. [{title}]({arxiv_url}) [[more](#{link_prefix}{cleaned})] \\\n'
@@ -83,19 +83,32 @@ def extract_criterion_from_paper(paper_entry: dict) -> int:
     else:
         return 0 # not sure
 
-def render_md_paper_title_by_topic(topic, paper_in_topic: list[str]) -> str: 
-    return f"### {topic}\n" +  "\n".join(paper_in_topic) + f"\n\nBack to [[top](#{link_prefix}topics)]\n\n---\n"
-        
+def render_md_paper_title_by_topic(topic, paper_in_topic: list[str], filtered_criteria=None) -> str:
+    topic_title = ""
+    if filtered_criteria and topic.startswith("Topic "):
+        # Extract the topic index from "Topic {i}"
+        topic_idx = int(topic.split(" ")[1])
+        if 1 <= topic_idx <= len(filtered_criteria):
+            # Extract the topic title from filtered_criteria
+            topic_title = filtered_criteria[topic_idx-1].strip()
+
+    paper_count = len(paper_in_topic)
+
+    if topic_title:
+        return f"### {topic}: {topic_title} ({paper_count} papers)\n" + "\n".join(paper_in_topic) + f"\n\nBack to [[top](#{link_prefix}topics)]\n\n---\n"
+    else:
+        return f"### {topic} ({paper_count} papers)\n" + "\n".join(paper_in_topic) + f"\n\nBack to [[top](#{link_prefix}topics)]\n\n---\n"
+
 
 def render_md_string(papers_dict):
     # header
     with open("configs/paper_topics.txt", "r") as f:
         criteria = f.readlines()
-        
+
     filtered_criteria = [i for i in criteria if len(i.strip()) and i.strip()[0] in '0123456789']
-    
+
     criteria_string = render_criteria(filtered_criteria)
-        
+
     import random
     def generate_background_for_white_foreground(threshold:int=150):
         # Ensure that the color is dark enough for white text to be readable
@@ -107,10 +120,10 @@ def render_md_string(papers_dict):
         # Convert the RGB values to a hexadecimal string
         hex_color = f'{r:02x}{g:02x}{b:02x}'
         return hex_color
-        
+
     random_font = random.sample(['Cookie', 'Lato', 'Arial', 'Comic', 'Inter', 'Bree', 'Poppins'], 1)[0]
     random_emoji = random.sample("😸😺🐱🐶🐼🐰🐥🐢🐣🌸🍀🌈☀️🍓🍦🍪🐻🦊🦄🐣🐤🐦🐧🦉🐸🐞🦋🐝🍄🌻🌷🌼🌺🌿🍃🍒🍑🍍🍉🍌🍫🍬🍭🍯🍼🧸🎀🎈🎉🛀🎁💐💖💕💞💓💗💘💝💟💌🎊🍩🍨🍧🍡🍖🍗🍕🍔🍟🌭🍿🍱🍣🍤🍥🍚🍙🍘🍜🍝🍛🍢🍵🍶🥂🥤🍹🍺🍻🥃🍷🥄🍴🍽🥢🥡🥪🥗🥘🥓🥞🥐🥖🥨🥯🥚🥦🥒🥑🥔🥕🥗🥝🥭🥥🥬🥪🥫🥟🥠🥡🥢🥣🥤🥧🥨🥩🥪🥫🥬🥭🥮", 1)[0]
-     
+
     output_string = (
         "# Personalized Daily Arxiv Papers "
         + datetime.today().strftime("%m/%d/%Y")
@@ -141,13 +154,13 @@ def render_md_string(papers_dict):
         paper_title_group_by_topic[paper_topic_idx].append(title_string)
         full_string = render_paper(paper, i + paper_topic_idx * topic_shift)
         paper_full_group_by_topic[paper_topic_idx].append(full_string)
-        
+
     for topic_idx, paper_in_topic in enumerate(paper_title_group_by_topic):
         if topic_idx == 0:
             # unknown topic
             continue
-        output_string += render_md_paper_title_by_topic(f'Topic {topic_idx}', paper_in_topic) 
-    output_string += render_md_paper_title_by_topic("Go beyond", paper_title_group_by_topic[0])
+        output_string += render_md_paper_title_by_topic(f'Topic {topic_idx}', paper_in_topic, filtered_criteria)
+    output_string += render_md_paper_title_by_topic("Go beyond", paper_title_group_by_topic[0], filtered_criteria)
 
     """
     # render each paper
