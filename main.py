@@ -178,12 +178,16 @@ if __name__ == "__main__":
     # now load config.ini
     config = configparser.ConfigParser()
     config.read("configs/config.ini")
-    keyconfig = configparser.ConfigParser()
-    keyconfig.read("configs/keys.ini")
 
-    S2_API_KEY = None
-    OAI_KEY = keyconfig["KEYS"]["openai"]
-    BASE_URL = keyconfig["KEYS"]["openai_base_url"]
+    # keyconfig = configparser.ConfigParser()
+    # keyconfig.read("configs/keys.ini")
+    # S2_API_KEY = None
+    # OAI_KEY = keyconfig["KEYS"]["openai"]
+    # BASE_URL = keyconfig["KEYS"]["openai_base_url"]
+
+    S2_API_KEY = os.environ.get("S2_KEY")
+    OAI_KEY = os.environ.get("OAI_KEY")
+    BASE_URL = os.environ.get("BASE_URL")
     if BASE_URL is None:
         print("Warning: BASE_URL is not set - using default openai base url")
         BASE_URL = "https://api.openai.com/v1"
