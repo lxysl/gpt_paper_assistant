@@ -268,9 +268,14 @@ def filter_by_gpt(
             scored_batches.append(scored_in_batch)
         # Limit the number of papers to 100 to prevent GitHub.io page from exceeding 400KB
         limited_papers = limit_papers_by_score(selected_papers, sort_dict)
-        # Update the selected_papers dictionary with the limited set
-        selected_papers.clear()
-        selected_papers.update(limited_papers)
+        if len(limited_papers) != len(selected_papers):
+            # Update the selected_papers dictionary with the limited set
+            selected_papers.clear()
+            selected_papers.update(limited_papers)
+        else:
+            # If lengths are the same, limit_papers_by_score likely returned the original selected_papers
+            # or a filtered version with the same number of elements. No need to clear/update.
+            pass
 
         if config["OUTPUT"].getboolean("dump_debug_file"):
             with open(
@@ -288,8 +293,8 @@ if __name__ == "__main__":
     # now load the api keys
     keyconfig = configparser.ConfigParser()
     keyconfig.read("configs/keys.ini")
-    S2_API_KEY = keyconfig["KEYS"]["semanticscholar"]
-    openai_client = OpenAI(api_key=keyconfig["KEYS"]["openai"])
+    S2_API_KEY = None
+    openai_client = OpenAI(api_key=keyconfig["KEYS"]["openai"], base_url=keyconfig["KEYS"]["openai_base_url"])
     # deal with config parsing
     with open("configs/base_prompt.txt", "r") as f:
         base_prompt = f.read()

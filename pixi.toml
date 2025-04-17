@@ -1,0 +1,20 @@
+[workspace]
+authors = ["lxysl <764139720@qq.com>"]
+channels = ["conda-forge"]
+name = "arxiv_scraper"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+openai = ">=1.71.0,<2"
+levenshtein = ">=0.27.1,<0.28"
+requests = ">=2.32.3,<3"
+tqdm = ">=4.67.1,<5"
+feedparser = ">=6.0.11,<7"
+retry = ">=0.9.2,<0.10"
+ruff = ">=0.11.5,<0.12"
+pre-commit = ">=4.2.0,<5"
+slack_sdk = ">=3.35.0,<4"
+arxiv = ">=2.2.0,<3"
