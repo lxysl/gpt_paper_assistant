@@ -22,7 +22,7 @@ def render_paper(paper_entry: dict, idx: int) -> str:
     abstract = paper_entry["abstract"]
     # get the authors
     authors = paper_entry["authors"]
-    paper_string = f'### {idx}\. [{title}]({arxiv_url})\n'
+    paper_string = f'<a id="paper-{idx}"></a>\n### {idx}. [{title}]({arxiv_url})\n'
     paper_string += f"**ArXiv:** {arxiv_id} [[page]({arxiv_url})] [[pdf]({arxiv_pdf_url})] [[kimi](https://papers.cool/arxiv/{arxiv_id})]\n\n"
     paper_string += f'**Authors:** {", ".join(authors)}\n\n'
     if "TLDR" in paper_entry:
@@ -72,19 +72,22 @@ def render_criteria(criteria: list[str]) -> str:
     criteria_string += f'[Go beyond](#{link_prefix}go-beyond)\n\n'
     return criteria_string
 
-def extract_criterion_from_paper(paper_entry: dict) -> int:
+def extract_criterion_from_paper(paper_entry: dict) -> list:
     if "COMMENT" not in paper_entry:
-        return 0
-    # Regular expression pattern to find 'criterion' followed by a number
-    pattern = r'riteri(.+?) (\d+)'
-    # Search for the pattern in the text
-    match = re.search(pattern, paper_entry["COMMENT"])
-    if match:
-        # Extract the number (group 1 in the match)
-        criterion_number = match.group(2)
-        return int(criterion_number)
-    else:
-        return 0 # not sure
+        return [0]
+    comment = paper_entry["COMMENT"]
+    # Match 'Criterion' or 'criterion', ASCII or full-width colon, numbers separated by ASCII or Chinese commas
+    match = re.search(
+        r'criterion\s*[:：]\s*([0-9]+(?:\s*[ ,，]\s*[0-9]+)*)',
+        comment,
+        re.IGNORECASE
+    )
+    if not match:
+        return [0]
+    # Split on both ASCII comma and Chinese comma, strip spaces
+    parts = re.split(r'[ ,，]+', match.group(1))
+    numbers = [int(p) for p in parts if p.isdigit()]
+    return numbers if numbers else [0]
 
 def render_md_paper_title_by_topic(topic, paper_in_topic: list[str], filtered_criteria=None) -> str:
     topic_title = ""
@@ -134,50 +137,51 @@ def render_md_string(papers_dict):
         + "\n\n## Topics\n\nPaper selection prompt and criteria (jump to the section by clicking the link):\n\n"
         + criteria_string
         + "\n---\n"
-        # + "## All\n Total relevant papers: "
-        # + str(len(papers_dict))
-        # + "\n\n"
-        # + "Table of contents with paper titles:\n\n"
     )
-    '''
-    title_strings = [
-        render_title_and_author(paper, i)
-        for i, paper in enumerate(papers_dict.values())
-    ]
-    # output_string = output_string + "\n".join(title_strings) + "\n---\n"
-    '''
-    # render each topic
-    # paper_title_group_by_topic = [[] for _ in range(len(filtered_criteria) + 1)]
-    paper_full_group_by_topic = [[] for _ in range(len(filtered_criteria) + 1)]
-    for i, paper in enumerate(papers_dict.values()):
-        paper_topic_idx = extract_criterion_from_paper(paper)
-        if paper_topic_idx > len(filtered_criteria):
-            paper_topic_idx = 0
-        # title_string = render_title_and_author(paper, i + paper_topic_idx * topic_shift)
-        # paper_title_group_by_topic[paper_topic_idx].append(title_string)
-        full_string = render_paper(paper, i + paper_topic_idx * topic_shift)
-        paper_full_group_by_topic[paper_topic_idx].append(full_string)
 
+    # Initialize the list of papers for each topic (including the "Go beyond" category)
+    paper_full_group_by_topic = [[] for _ in range(len(filtered_criteria) + 1)]
+    
+    # Track processed papers to avoid duplicates in the "Go beyond" category
+    processed_beyond_papers = set()
+    
+    # Process each paper
+    for i, (paper_id, paper) in enumerate(papers_dict.items()):
+        topic_indices = extract_criterion_from_paper(paper)
+        
+        for topic_idx in topic_indices:
+            if topic_idx > len(filtered_criteria):
+                topic_idx = 0
+            
+            # If the paper is classified into a specific topic, or the "Go beyond" category but not yet processed
+            if topic_idx > 0 or (topic_idx == 0 and paper_id not in processed_beyond_papers):
+                idx = i + topic_idx * topic_shift
+                full_string = render_paper(paper, idx)
+                paper_full_group_by_topic[topic_idx].append(full_string)
+                
+                # If the paper is classified into a specific topic, mark it as processed (should not appear in the "Go beyond" category)
+                if topic_idx > 0:
+                    processed_beyond_papers.add(paper_id)
+
+    # Render today's Spotlight papers (RELEVANCE == 10 or NOVELTY == 10), with jump links to each paper
+    key_papers_string = ""
+    for i, (paper_id, paper) in enumerate(papers_dict.items()):
+        if paper["RELEVANCE"] == 10 or paper["NOVELTY"] == 10:
+            topic_indices = extract_criterion_from_paper(paper)
+            for topic_idx in topic_indices:
+                idx = i + topic_idx * topic_shift
+                key_papers_string += f'{paper["title"]} [topic {topic_idx}] [jump](#{link_prefix}paper-{idx})\n'
+    output_string += f"## Today's Spotlight Papers\n{key_papers_string}\n\n---\n\n"
+
+    # Render each topic's content
     for topic_idx, paper_in_topic in enumerate(paper_full_group_by_topic):
         if topic_idx == 0:
-            # unknown topic
+            # Skip the "Go beyond" category, handle it later.
             continue
         output_string += render_md_paper_title_by_topic(f'Topic {topic_idx}', paper_in_topic, filtered_criteria)
     # Render the "Go beyond" topic last
     output_string += render_md_paper_title_by_topic("Go beyond", paper_full_group_by_topic[0], filtered_criteria)
 
-    # Remove the separate "Full paper list" section as details are now in each topic
-    """
-    # render each paper
-    paper_strings = [
-        render_paper(paper, i) for i, paper in enumerate(papers_dict.values())
-    ]
-    """
-    # paper_string = "\n---\n".join(["\n".join(paper_in_topic) for paper_in_topic in paper_full_group_by_topic[1:] + paper_full_group_by_topic[:1] if len(paper_in_topic)])
-    # # join all papers into one string
-    # output_string += f"## Full paper list\n {paper_string}"
-    # output_string += "\n\n---\n\n"
-    # output_string += f"## Paper selection prompt\n{criterion}"
     return output_string
 
 
