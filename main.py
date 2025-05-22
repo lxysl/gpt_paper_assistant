@@ -242,7 +242,10 @@ if __name__ == "__main__":
     keys = list(sort_dict.keys())
     values = list(sort_dict.values())
     sorted_keys = [keys[idx] for idx in argsort(values)[::-1]]
-    selected_papers = {key: selected_papers[key] for key in sorted_keys}
+    # Remove any keys that were deleted from selected_papers to avoid KeyError
+    sorted_keys = [key for key in sorted_keys if key in selected_papers]
+    # Rebuild selected_papers only with keys that remain after filtering
+    selected_papers = {key: selected_papers[key] for key in sorted_keys if key in selected_papers}
     if config["OUTPUT"].getboolean("debug_messages"):
         print(sort_dict)
         print(selected_papers)
