@@ -3,6 +3,7 @@ Write the response in JSONL format with {ARXIVID, COMMENT, RELEVANCE, NOVELTY, T
 - The COMMENT should identify whether there is a criteria that match the paper very closely.
     > If so, it MUST start with "Criterion: N" where N is the number of the matching criterion (e.g., "Criterion: 8" for criterion 8).
     > If there are multiple matching criteria, list them as "Criterion: N, M" (e.g., "Criterion: 2, 5").
+    > If not necessary, try to assign only the most precise criterion, such as choosing the smaller field when two criterions overlap.
     > If no specific criterion matches, start with "Criterion: 0" and then provide your comment.
     > These matches should not be based on general terms like "language modeling" or "advancements" and should specifically refer to a criterion.
 - The RELEVANCE should be a relevance score from 1-10 where 10 must be directly related to the exact, specific criterion with near-synonym keyword matches and authors who are known for working on the topic, 1 is irrelevant to any criterion, and unrelated to your friend's general interest area, 3 is papers that are relevant to the general interest area, but not specific criteria, and 5 is a direct match to a specific criterion.
