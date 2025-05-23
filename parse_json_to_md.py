@@ -100,10 +100,19 @@ def render_md_paper_title_by_topic(topic, paper_in_topic: list[str], filtered_cr
 
     paper_count = len(paper_in_topic)
 
-    if topic_title:
-        return f"### {topic}: {topic_title} ({paper_count} papers)\n" + "\n".join(paper_in_topic) + f"\n\nBack to [[top](#{link_prefix}topics)]\n\n---\n"
+    # Add explicit anchor ID for topic sections
+    if topic.startswith("Topic "):
+        topic_idx = int(topic.split(" ")[1])
+        anchor_id = f'<a id="topic-{topic_idx}"></a>\n'
+    elif topic == "Go beyond":
+        anchor_id = f'<a id="go-beyond"></a>\n'
     else:
-        return f"### {topic} ({paper_count} papers)\n" + "\n".join(paper_in_topic) + f"\n\nBack to [[top](#{link_prefix}topics)]\n\n---\n"
+        anchor_id = ""
+
+    if topic_title:
+        return anchor_id + f"### {topic}: {topic_title} ({paper_count} papers)\n" + "\n".join(paper_in_topic) + f"\n\nBack to [[top](#{link_prefix}topics)]\n\n---\n"
+    else:
+        return anchor_id + f"### {topic} ({paper_count} papers)\n" + "\n".join(paper_in_topic) + f"\n\nBack to [[top](#{link_prefix}topics)]\n\n---\n"
 
 
 def render_md_string(papers_dict):
@@ -170,7 +179,7 @@ def render_md_string(papers_dict):
             topic_indices = extract_criterion_from_paper(paper)
             for topic_idx in topic_indices:
                 idx = i + topic_idx * topic_shift
-                key_papers_string += f'{paper["title"]} [topic {topic_idx}] [jump](#{link_prefix}paper-{idx})\n'
+                key_papers_string += f'{paper["title"]} [topic {topic_idx}] [[jump](#{link_prefix}paper-{idx})]\n'
     output_string += f"## Today's Spotlight Papers\n{key_papers_string}\n\n---\n\n"
 
     # Render each topic's content
