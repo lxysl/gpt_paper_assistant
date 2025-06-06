@@ -28,7 +28,7 @@ def render_paper(paper_entry: dict, idx: int) -> str:
     if "TLDR" in paper_entry:
         tldr = paper_entry["TLDR"]
         paper_string += f'**TLDR:** {tldr}\n\n'
-    paper_string += f"**Abstract:** {abstract}\n\n"
+    paper_string += f"<details>\n<summary><strong>Abstract</strong></summary>\n\n{abstract}\n\n</details>\n\n"
     if "COMMENT" in paper_entry:
         comment = paper_entry["COMMENT"]
         paper_string += f"**Comment:** {comment}\n\n"
