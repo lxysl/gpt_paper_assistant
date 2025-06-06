@@ -72,29 +72,114 @@ def call_chatgpt(full_prompt, openai_client, model):
     )
 
 
-def run_and_parse_chatgpt(full_prompt, openai_client, config):
-    # just runs the chatgpt prompt, tries to parse the resulting JSON
-    completion = call_chatgpt(full_prompt, openai_client, config["SELECTION"]["model"])
-    out_text = completion.choices[0].message.content
-    out_text = re.sub("```jsonl\n", "", out_text)
-    out_text = re.sub("```", "", out_text)
-    out_text = re.sub(r"\n+", "\n", out_text)
-    out_text = re.sub("},", "}", out_text).strip()
-    # split out_text line by line and parse each as a json.
-    json_dicts = []
-    for line in out_text.split("\n"):
-        # try catch block to attempt to parse json
+def validate_json_keys(json_dict, required_keys):
+    """
+    检查JSON字典是否包含所有必需的键
+    """
+    for key in required_keys:
+        if key not in json_dict:
+            return False
+    return True
+
+
+def run_and_parse_chatgpt(full_prompt, openai_client, config, required_keys=None, max_retries=3):
+    """
+    运行chatgpt提示，尝试解析结果JSON，并验证是否包含必需的键
+    如果缺少必需的键，会重试请求
+    """
+    if required_keys is None:
+        required_keys = ["RELEVANCE", "NOVELTY", "ARXIVID"]
+    
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
+    
+    for attempt in range(max_retries):
         try:
-            json_dicts.append(json.loads(line))
-        except Exception as ex:
+            completion = call_chatgpt(full_prompt, openai_client, config["SELECTION"]["model"])
+            token_usage = calc_token_usage(completion.usage)
+            total_prompt_tokens += token_usage["prompt_tokens"]
+            total_completion_tokens += token_usage["completion_tokens"]
+            
+            out_text = completion.choices[0].message.content
+            out_text = re.sub("```jsonl\n", "", out_text)
+            out_text = re.sub("```", "", out_text)
+            out_text = re.sub(r"\n+", "\n", out_text)
+            out_text = re.sub("},", "}", out_text).strip()
+            
+            # split out_text line by line and parse each as a json.
+            json_dicts = []
+            all_valid = True
+            parsed_lines = []
+            
+            for line in out_text.split("\n"):
+                if line.strip():  # 跳过空行
+                    try:
+                        parsed_json = json.loads(line)
+                        parsed_lines.append(parsed_json)
+                    except Exception as ex:
+                        if config["OUTPUT"].getboolean("debug_messages"):
+                            print("Exception happened " + str(ex))
+                            print("Failed to parse LM output as json")
+                            print(line)
+                        all_valid = False
+                        break
+            
+            # 检查所有解析成功的JSON是否都包含必需的键
+            if all_valid and parsed_lines:
+                for parsed_json in parsed_lines:
+                    if validate_json_keys(parsed_json, required_keys):
+                        json_dicts.append(parsed_json)
+                    else:
+                        if config["OUTPUT"].getboolean("debug_messages"):
+                            print(f"JSON缺少必需的键: {parsed_json}")
+                            print(f"缺少的键: {[key for key in required_keys if key not in parsed_json]}")
+                        all_valid = False
+                        break
+            
+            # 只有当所有JSON都有效且包含必需键时才返回结果
+            if all_valid and json_dicts:
+                return json_dicts, {
+                    "prompt_tokens": total_prompt_tokens,
+                    "completion_tokens": total_completion_tokens,
+                    "total_tokens": total_prompt_tokens + total_completion_tokens
+                }
+            
+            # 如果有任何问题，打印调试信息并重试
             if config["OUTPUT"].getboolean("debug_messages"):
-                print("Exception happened " + str(ex))
-                print("Failed to parse LM output as json")
-                print(out_text)
-                print("RAW output")
+                print(f"尝试 {attempt + 1}/{max_retries}: 返回的JSON不完整或缺少必需键")
+                if not parsed_lines:
+                    print("没有成功解析任何JSON行")
+                print("RAW output:")
                 print(completion.choices[0].message.content)
-            continue
-    return json_dicts, calc_token_usage(completion.usage)
+                if attempt < max_retries - 1:
+                    print("正在重试...")
+                    
+        except Exception as ex:
+            token_usage = {"prompt_tokens": 0, "completion_tokens": 0}
+            # 即使出现异常，也要尝试获取token使用量
+            try:
+                if 'completion' in locals():
+                    token_usage = calc_token_usage(completion.usage)
+                    total_prompt_tokens += token_usage["prompt_tokens"]
+                    total_completion_tokens += token_usage["completion_tokens"]
+            except:
+                pass
+                
+            if config["OUTPUT"].getboolean("debug_messages"):
+                print(f"尝试 {attempt + 1}/{max_retries} 时发生异常: {str(ex)}")
+                if attempt < max_retries - 1:
+                    print("正在重试...")
+    
+    # 如果所有重试都失败了，返回空列表但包含累计的token使用量
+    if config["OUTPUT"].getboolean("debug_messages"):
+        print(f"经过 {max_retries} 次尝试后仍然失败，返回空结果")
+        print(f"累计token使用量: {total_prompt_tokens} prompt tokens, {total_completion_tokens} completion tokens")
+    
+    return [], {
+        "prompt_tokens": total_prompt_tokens,
+        "completion_tokens": total_completion_tokens,
+        "total_tokens": total_prompt_tokens + total_completion_tokens
+    }
 
 
 def paper_to_string(paper_entry: Paper) -> str:
@@ -160,29 +245,63 @@ def filter_papers_by_title(
     final_list = []
     total_prompt_tokens = 0
     total_completion_tokens = 0
+    max_retries = 3
+    
     for batch in batches_of_papers:
         papers_string = "".join([paper_to_titles(paper) for paper in batch])
         full_prompt = (
             base_prompt + "\n " + criterion + "\n" + papers_string + filter_postfix
         )
         model = config["SELECTION"]["model"]
-        completion = call_chatgpt(full_prompt, openai_client, model)
-        token_usage = calc_token_usage(completion.usage)
-        total_prompt_tokens += token_usage["prompt_tokens"]
-        total_completion_tokens += token_usage["completion_tokens"]
-        out_text = completion.choices[0].message.content
-        try:
-            filtered_set = set(json.loads(out_text))
-            for paper in batch:
-                if paper.arxiv_id not in filtered_set:
-                    final_list.append(paper)
-                else:
-                    print("Filtered out paper " + paper.arxiv_id)
-        except Exception as ex:
-            print("Exception happened " + str(ex))
-            print("Failed to parse LM output as list " + out_text)
-            print(completion)
-            continue
+        
+        # 添加重试逻辑
+        success = False
+        for attempt in range(max_retries):
+            try:
+                completion = call_chatgpt(full_prompt, openai_client, model)
+                token_usage = calc_token_usage(completion.usage)
+                total_prompt_tokens += token_usage["prompt_tokens"]
+                total_completion_tokens += token_usage["completion_tokens"]
+                out_text = completion.choices[0].message.content
+                
+                # 尝试解析为列表
+                filtered_set = set(json.loads(out_text))
+                
+                # 如果解析成功，处理结果
+                for paper in batch:
+                    if paper.arxiv_id not in filtered_set:
+                        final_list.append(paper)
+                    else:
+                        if config["OUTPUT"].getboolean("debug_messages"):
+                            print("Filtered out paper " + paper.arxiv_id)
+                
+                success = True
+                break
+                
+            except Exception as ex:
+                # 即使出现异常，也要尝试获取token使用量
+                try:
+                    if 'completion' in locals():
+                        token_usage = calc_token_usage(completion.usage)
+                        total_prompt_tokens += token_usage["prompt_tokens"]
+                        total_completion_tokens += token_usage["completion_tokens"]
+                except:
+                    pass
+                    
+                if config["OUTPUT"].getboolean("debug_messages"):
+                    print(f"尝试 {attempt + 1}/{max_retries} 解析标题过滤结果时发生异常: {str(ex)}")
+                    if 'out_text' in locals():
+                        print("Failed to parse LM output as list: " + out_text)
+                    if attempt < max_retries - 1:
+                        print("正在重试...")
+                continue
+        
+        # 如果所有重试都失败，将整个批次的论文都保留
+        if not success:
+            if config["OUTPUT"].getboolean("debug_messages"):
+                print(f"经过 {max_retries} 次尝试后仍然无法解析结果，保留批次中的所有论文")
+            final_list.extend(batch)
+            
     return final_list, {"prompt_tokens": total_prompt_tokens, "completion_tokens": total_completion_tokens, "total_tokens": total_prompt_tokens + total_completion_tokens}
 
 
@@ -202,7 +321,11 @@ def run_on_batch(
             postfix_prompt,
         ]
     )
-    json_dicts, token_usage = run_and_parse_chatgpt(full_prompt, openai_client, config)
+    json_dicts, token_usage = run_and_parse_chatgpt(
+        full_prompt, openai_client, config, 
+        required_keys=["RELEVANCE", "NOVELTY", "ARXIVID"], 
+        max_retries=3
+    )
     return json_dicts, token_usage
 
 
@@ -248,23 +371,35 @@ def filter_by_gpt(
             total_prompt_tokens += token_usage["prompt_tokens"]
             total_completion_tokens += token_usage["completion_tokens"]
             for jdict in json_dicts:
-                if (
-                    int(jdict["RELEVANCE"])
-                    >= int(config["FILTERING"]["relevance_cutoff"])
-                    and jdict["NOVELTY"] >= int(config["FILTERING"]["novelty_cutoff"])
-                    and jdict["ARXIVID"] in all_papers
-                ):
-                    selected_papers[jdict["ARXIVID"]] = {
-                        **dataclasses.asdict(all_papers[jdict["ARXIVID"]]),
-                        **jdict,
-                    }
-                    sort_dict[jdict["ARXIVID"]] = jdict["RELEVANCE"] + jdict["NOVELTY"]
-                scored_in_batch.append(
-                    {
-                        **dataclasses.asdict(all_papers[jdict["ARXIVID"]]),
-                        **jdict,
-                    }
-                )
+                # 检查是否包含所有必需的键
+                if not validate_json_keys(jdict, ["RELEVANCE", "NOVELTY", "ARXIVID"]):
+                    if config["OUTPUT"].getboolean("debug_messages"):
+                        print(f"跳过缺少必需键的JSON: {jdict}")
+                    continue
+                
+                try:
+                    if (
+                        int(jdict["RELEVANCE"])
+                        >= int(config["FILTERING"]["relevance_cutoff"])
+                        and jdict["NOVELTY"] >= int(config["FILTERING"]["novelty_cutoff"])
+                        and jdict["ARXIVID"] in all_papers
+                    ):
+                        selected_papers[jdict["ARXIVID"]] = {
+                            **dataclasses.asdict(all_papers[jdict["ARXIVID"]]),
+                            **jdict,
+                        }
+                        sort_dict[jdict["ARXIVID"]] = jdict["RELEVANCE"] + jdict["NOVELTY"]
+                    scored_in_batch.append(
+                        {
+                            **dataclasses.asdict(all_papers[jdict["ARXIVID"]]),
+                            **jdict,
+                        }
+                    )
+                except (ValueError, KeyError) as ex:
+                    if config["OUTPUT"].getboolean("debug_messages"):
+                        print(f"处理JSON数据时出错: {str(ex)}")
+                        print(f"问题JSON: {jdict}")
+                    continue
             scored_batches.append(scored_in_batch)
         # Limit the number of papers to 100 to prevent GitHub.io page from exceeding 400KB
         limited_papers = limit_papers_by_score(selected_papers, sort_dict)
@@ -332,13 +467,25 @@ if __name__ == "__main__":
         for paper in batch:
             all_papers[paper.arxiv_id] = paper
         for jdict in json_dicts:
-            paper_outputs[jdict["ARXIVID"]] = {
-                **dataclasses.asdict(all_papers[jdict["ARXIVID"]]),
-                **jdict,
-            }
-            sort_dict[jdict["ARXIVID"]] = jdict["RELEVANCE"] + jdict["NOVELTY"]
+            # 检查是否包含所有必需的键
+            if not validate_json_keys(jdict, ["RELEVANCE", "NOVELTY", "ARXIVID"]):
+                if config["OUTPUT"].getboolean("debug_messages"):
+                    print(f"跳过缺少必需键的JSON: {jdict}")
+                continue
+            
+            try:
+                paper_outputs[jdict["ARXIVID"]] = {
+                    **dataclasses.asdict(all_papers[jdict["ARXIVID"]]),
+                    **jdict,
+                }
+                sort_dict[jdict["ARXIVID"]] = jdict["RELEVANCE"] + jdict["NOVELTY"]
+            except (ValueError, KeyError) as ex:
+                if config["OUTPUT"].getboolean("debug_messages"):
+                    print(f"处理JSON数据时出错: {str(ex)}")
+                    print(f"问题JSON: {jdict}")
+                continue
 
-        # sort the papers by relevance and novelty
+    # sort the papers by relevance and novelty
     print(f"Total token usage: {total_prompt_tokens} prompt tokens, {total_completion_tokens} completion tokens")
     keys = list(sort_dict.keys())
     values = list(sort_dict.values())
