@@ -31,6 +31,8 @@ jobs:
         SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
         WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
         BASE_URL: ${{ secrets.BASE_URL }}
+        CLIENT: ${{ secrets.CLIENT }}
+        GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
       run: |
         python main.py
     - name: Upload results
