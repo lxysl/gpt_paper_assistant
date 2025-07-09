@@ -210,7 +210,13 @@ def filter_papers_by_title(
         total_completion_tokens += token_usage["completion_tokens"]
         
         try:
-            filtered_set = set(json.loads(out_text))
+            # 清理 markdown 代码块
+            cleaned_text = out_text
+            cleaned_text = re.sub(r'```json\n', '', cleaned_text)
+            cleaned_text = re.sub(r'```', '', cleaned_text)
+            cleaned_text = cleaned_text.strip()
+            
+            filtered_set = set(json.loads(cleaned_text))
             for paper in batch:
                 if paper.arxiv_id not in filtered_set:
                     final_list.append(paper)
