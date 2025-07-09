@@ -4,6 +4,7 @@ import os
 import time
 
 from openai import OpenAI
+from google import genai
 from requests import Session
 from typing import TypeVar, Generator
 import io
@@ -186,16 +187,26 @@ if __name__ == "__main__":
     # BASE_URL = keyconfig["KEYS"]["openai_base_url"]
 
     S2_API_KEY = os.environ.get("S2_KEY")
-    OAI_KEY = os.environ.get("OAI_KEY")
-    BASE_URL = os.environ.get("BASE_URL")
-    if BASE_URL is None:
-        print("Warning: BASE_URL is not set - using default openai base url")
-        BASE_URL = "https://api.openai.com/v1"
-    if OAI_KEY is None:
-        raise ValueError(
-            "OpenAI key is not set - please set OAI_KEY to your OpenAI key"
-        )
-    openai_client = OpenAI(api_key=OAI_KEY, base_url=BASE_URL)
+    CLIENT = os.environ.get("CLIENT", "openai").lower()
+    
+    if CLIENT == "gemini":
+        GEMINI_KEY = os.environ.get("GEMINI_KEY")
+        if GEMINI_KEY is None:
+            raise ValueError(
+                "Gemini key is not set - please set GEMINI_KEY to your Gemini key"
+            )
+        ai_client = genai.Client(api_key=GEMINI_KEY)
+    else:
+        OAI_KEY = os.environ.get("OAI_KEY")
+        BASE_URL = os.environ.get("BASE_URL")
+        if BASE_URL is None:
+            print("Warning: BASE_URL is not set - using default openai base url")
+            BASE_URL = "https://api.openai.com/v1"
+        if OAI_KEY is None:
+            raise ValueError(
+                "OpenAI key is not set - please set OAI_KEY to your OpenAI key"
+            )
+        ai_client = OpenAI(api_key=OAI_KEY, base_url=BASE_URL)
     # load the author list
     with io.open("configs/authors.txt", "r") as fopen:
         author_names, author_ids = parse_authors(fopen.readlines())
@@ -232,7 +243,7 @@ if __name__ == "__main__":
         all_authors,
         papers,
         config,
-        openai_client,
+        ai_client,
         all_papers,
         selected_papers,
         sort_dict,
