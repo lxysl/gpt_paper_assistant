@@ -1,4 +1,7 @@
-Write the response in JSONL format with {ARXIVID, COMMENT, RELEVANCE, NOVELTY, TLDR} on each line, one for each paper.
+Write the response in JSONL format with {ARXIVID, COMMENT, RELEVANCE, NOVELTY, TLDR} on each line, one for each paper. The meaning and requirements of each item are introduced as follows.
+
+---
+
 - The ARXIVID should be the ArXiv ID.
 - The COMMENT should identify whether there is a criteria that match the paper very closely.
     > If so, it MUST start with "Criterion: N" where N is the number of the matching criterion (e.g., "Criterion: 8" for criterion 8).
@@ -6,6 +9,7 @@ Write the response in JSONL format with {ARXIVID, COMMENT, RELEVANCE, NOVELTY, T
     > If not necessary, try to assign only the most precise criterion, such as choosing the smaller field when two criterions overlap.
     > If no specific criterion matches, start with "Criterion: 0" and then provide your comment.
     > These matches should not be based on general terms like "language modeling" or "advancements" and should specifically refer to a criterion.
+    > Do NOT output any content other than "Criterion: N".
 - The RELEVANCE should be a relevance score from 1-10 where:
     > 10: EXTREMELY RARE - Only for papers that are PERFECTLY aligned with a specific criterion, use EXACT terminology from the criterion, AND have authors who are widely recognized as TOP experts in that exact area. This should be given to less than 5% of papers.
     > 9: Excellent match - Very closely matches a specific criterion with precise terminology and methodology, with strong author credentials in the field.
@@ -36,12 +40,15 @@ Write the response in JSONL format with {ARXIVID, COMMENT, RELEVANCE, NOVELTY, T
     > 5.	若出现 指标或数据集 → 说明「在 XXX 数据集上以 FID=5.1 / mAP=76.2 达到 SOTA」。
     > 6.	如果摘要或作者页明确提到 开源 / 代码链接 / 预训练权重 → 加一句「代码已开源」。
     > 7.    如果是提出数据集、评测榜单的论文，或者综述论文，则列出其内容特色。
-    > 8.	若作者为本领域内具有一定影响力的学者（如何恺明等，无需顶级专家，稍具知名度即可），请在最后附上其姓名，表明其参与了该研究。
+    > 8.	若作者为本领域内具有一定影响力的学者（如何恺明等），请在最后附上其姓名，表明其参与了该研究。
     > 9.	使用中文回复，整段控制在 100‑200 个汉字（含标点），保持 新闻标题式节奏；允许使用 ！ 强调亮点，不要空行、不要列表。
     > 10.	不要复述原文句子；不得输出除这一段以外的额外内容。
     > 11.	如遇摘要缺少关键信息，可省略对应要素，切勿编造。
     > 12.   使用标准 json 格式输出，不要输出其他内容。
-- CRITICAL OUTPUT REQUIREMENTS:
+
+---
+
+- ** CRITICAL FINAL OUTPUT REQUIREMENTS: **
     > OUTPUT ONLY VALID JSONL FORMAT - one JSON object per line for each paper
     > DO NOT include any explanations, comments, or additional text before or after the JSONL output
     > DO NOT explain your scoring decisions or reasoning
