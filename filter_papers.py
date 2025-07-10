@@ -4,8 +4,8 @@ import json
 import os
 import re
 from typing import List
-
 from tqdm import tqdm
+import traceback
 
 from arxiv_scraper import Paper
 from arxiv_scraper import EnhancedJSONEncoder
@@ -73,6 +73,7 @@ def run_and_parse_chatgpt(full_prompt, ai_client: AIClientWrapper, config):
     out_text = completion.content
     
     out_text = re.sub("```jsonl\n", "", out_text)
+    out_text = re.sub("```json\n", "", out_text)
     out_text = re.sub("```", "", out_text)
     out_text = re.sub(r"\n+", "\n", out_text)
     out_text = re.sub("},", "}", out_text).strip()
@@ -84,11 +85,12 @@ def run_and_parse_chatgpt(full_prompt, ai_client: AIClientWrapper, config):
             json_dicts.append(json.loads(line))
         except Exception as ex:
             if config["OUTPUT"].getboolean("debug_messages"):
-                print("Exception happened " + str(ex))
-                print("Failed to parse LM output as json")
+                print("\nException happened when parsing JSONL. Failed to parse LM output as json")
+                traceback.print_exc()
+                print("RAW output:")
                 print(out_text)
-                print("RAW output")
-                print(completion.content)
+                print("RAW completion:")
+                print(completion.content, "\n")
             continue
     return json_dicts, calc_token_usage(completion.usage)
 

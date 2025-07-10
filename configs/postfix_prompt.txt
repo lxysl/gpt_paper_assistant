@@ -52,5 +52,11 @@ Write the response in JSONL format with {ARXIVID, COMMENT, RELEVANCE, NOVELTY, T
     > OUTPUT ONLY VALID JSONL FORMAT - one JSON object per line for each paper
     > DO NOT include any explanations, comments, or additional text before or after the JSONL output
     > DO NOT explain your scoring decisions or reasoning
-    > Each line must be a complete, valid JSON object with exactly these fields: {ARXIVID, COMMENT, RELEVANCE, NOVELTY, TLDR}
+    > Each line must be a complete, valid JSON object with exactly these fields: {ARXIVID, COMMENT, RELEVANCE, NOVELTY, TLDR}, but do not wrap with json format string.
+    > For example:
+      ```jsonl
+        {ARXIVID, COMMENT, RELEVANCE, NOVELTY, TLDR}
+        {ARXIVID, COMMENT, RELEVANCE, NOVELTY, TLDR}
+        ...
+      ```
     > Be VERY conservative with scores 9-10 for the RELEVANCE and NOVELTY metrics. Most good papers should receive scores in the 5-7 range.
