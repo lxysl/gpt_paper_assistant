@@ -5,6 +5,18 @@ import re
 link_prefix = 'user-content-'
 topic_shift = 1000
 
+def truncate_authors(authors: list, max_authors: int = 20) -> str:
+    """
+    Truncate author list if it's too long. If more than max_authors, 
+    show first 10 and last 10 with ellipsis in between.
+    """
+    if len(authors) <= max_authors:
+        return ", ".join(authors)
+    else:
+        first_10 = authors[:10]
+        last_10 = authors[-10:]
+        return ", ".join(first_10) + ", ..., " + ", ".join(last_10)
+
 def render_paper(paper_entry: dict, idx: int) -> str:
     """
     :param paper_entry: is a dict from a json. an example is
@@ -24,7 +36,7 @@ def render_paper(paper_entry: dict, idx: int) -> str:
     authors = paper_entry["authors"]
     paper_string = f'<a id="paper-{idx}"></a>\n### {idx}. [{title}]({arxiv_url})\n'
     paper_string += f"**ArXiv:** {arxiv_id} [[page]({arxiv_url})] [[pdf]({arxiv_pdf_url})] [[kimi](https://papers.cool/arxiv/{arxiv_id})]\n\n"
-    paper_string += f'**Authors:** {", ".join(authors)}\n\n'
+    paper_string += f'**Authors:** {truncate_authors(authors)}\n\n'
     if "TLDR" in paper_entry:
         tldr = paper_entry["TLDR"]
         paper_string += f'**TLDR:** {tldr}\n\n'
@@ -60,7 +72,7 @@ def render_title_and_author(paper_entry: dict, idx: int) -> str:
     # Replace spaces with dashes
     cleaned = cleaned.replace(' ', '-').lower()
     paper_string = f'{idx}\. [{title}]({arxiv_url}) [[more](#{link_prefix}{cleaned})] \\\n'
-    paper_string += f'**Authors:** {", ".join(authors)}\n'
+    paper_string += f'**Authors:** {truncate_authors(authors)}\n'
     return paper_string
 
 
@@ -178,9 +190,14 @@ def render_md_string(papers_dict):
         # Only highlight papers with both high relevance (≥9) and high novelty (≥8), or perfect relevance (10)
         if (paper["RELEVANCE"] >= 9 and paper["NOVELTY"] >= 8) or paper["RELEVANCE"] == 10:
             topic_indices = extract_criterion_from_paper(paper)
-            for topic_idx in topic_indices:
-                idx = i + topic_idx * topic_shift
-                key_papers_string += f'{paper["title"]} [topic {topic_idx}] [[jump](#{link_prefix}paper-{idx})]\\\n'
+            # Show each paper only once, but list all topics it belongs to
+            if topic_indices:
+                # Use the first topic index for the main link
+                primary_topic_idx = topic_indices[0]
+                idx = i + primary_topic_idx * topic_shift
+                # Create topic list string for display
+                topic_list = ", ".join([f"topic {topic_idx}" for topic_idx in topic_indices])
+                key_papers_string += f'{paper["title"]} [{topic_list}] [[jump](#{link_prefix}paper-{idx})]\\\n'
     output_string += f"## Today's Spotlight Papers\n\n{key_papers_string}\n\n---\n\n"
 
     # Render each topic's content
