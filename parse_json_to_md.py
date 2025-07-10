@@ -16,8 +16,14 @@ def truncate_authors(authors: list, max_authors: int = 20) -> str:
         if isinstance(author, dict) and "name" in author:
             author_names.append(author["name"])
         elif isinstance(author, str):
-            author_names.append(author)
-    
+            if "," in author:
+                split_authors = [name.strip() for name in author.split(",")]
+                for name in split_authors:
+                    if name:
+                        author_names.append(name)
+            else:
+                author_names.append(author)
+
     if len(author_names) <= max_authors:
         return ", ".join(author_names)
     else:
