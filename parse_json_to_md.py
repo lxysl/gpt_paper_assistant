@@ -10,11 +10,19 @@ def truncate_authors(authors: list, max_authors: int = 20) -> str:
     Truncate author list if it's too long. If more than max_authors, 
     show first 10 and last 10 with ellipsis in between.
     """
-    if len(authors) <= max_authors:
-        return ", ".join(authors)
+    # Extract author names from the list of dictionaries
+    author_names = []
+    for author in authors:
+        if isinstance(author, dict) and "name" in author:
+            author_names.append(author["name"])
+        elif isinstance(author, str):
+            author_names.append(author)
+    
+    if len(author_names) <= max_authors:
+        return ", ".join(author_names)
     else:
-        first_10 = authors[:10]
-        last_10 = authors[-10:]
+        first_10 = author_names[:10]
+        last_10 = author_names[-10:]
         return ", ".join(first_10) + ", ..., " + ", ".join(last_10)
 
 def render_paper(paper_entry: dict, idx: int) -> str:
@@ -195,9 +203,15 @@ def render_md_string(papers_dict):
                 # Use the first topic index for the main link
                 primary_topic_idx = topic_indices[0]
                 idx = i + primary_topic_idx * topic_shift
-                # Create topic list string for display
-                topic_list = ", ".join([f"topic {topic_idx}" for topic_idx in topic_indices])
-                key_papers_string += f'{paper["title"]} [{topic_list}] [[jump](#{link_prefix}paper-{idx})]\\\n'
+                # Create topic list string for display with clickable links
+                topic_links = []
+                for topic_idx in topic_indices:
+                    if topic_idx == 0:
+                        topic_links.append(f"[go beyond](#{link_prefix}go-beyond)")
+                    else:
+                        topic_links.append(f"[topic {topic_idx}](#{link_prefix}topic-{topic_idx})")
+                topic_list = ", ".join(topic_links)
+                key_papers_string += f'**{paper["title"]}** [{topic_list}] [[jump](#{link_prefix}paper-{idx})]\\\n'
     output_string += f"## Today's Spotlight Papers\n\n{key_papers_string}\n\n---\n\n"
 
     # Render each topic's content
