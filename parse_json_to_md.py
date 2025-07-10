@@ -206,18 +206,16 @@ def render_md_string(papers_dict):
             topic_indices = extract_criterion_from_paper(paper)
             # Show each paper only once, but list all topics it belongs to
             if topic_indices:
-                # Use the first topic index for the main link
-                primary_topic_idx = topic_indices[0]
-                idx = i + primary_topic_idx * topic_shift
                 # Create topic list string for display with clickable links
                 topic_links = []
                 for topic_idx in topic_indices:
                     if topic_idx == 0:
                         topic_links.append(f"[go beyond](#{link_prefix}go-beyond)")
                     else:
-                        topic_links.append(f"[topic {topic_idx}](#{link_prefix}topic-{topic_idx})")
+                        idx = i + topic_idx * topic_shift
+                        topic_links.append(f"[topic {topic_idx}](#{link_prefix}paper-{idx})")
                 topic_list = ", ".join(topic_links)
-                key_papers_string += f'**{paper["title"]}** [{topic_list}] [[jump](#{link_prefix}paper-{idx})]\\\n'
+                key_papers_string += f'**{paper["title"]}** [{topic_list}]\n\n'
     output_string += f"## Today's Spotlight Papers\n\n{key_papers_string}\n\n---\n\n"
 
     # Render each topic's content
