@@ -179,8 +179,8 @@ def render_md_string(papers_dict):
             topic_indices = extract_criterion_from_paper(paper)
             for topic_idx in topic_indices:
                 idx = i + topic_idx * topic_shift
-                key_papers_string += f'{paper["title"]} [topic {topic_idx}] [[jump](#{link_prefix}paper-{idx})]\n'
-    output_string += f"## Today's Spotlight Papers\n{key_papers_string}\n\n---\n\n"
+                key_papers_string += f'{paper["title"]} [topic {topic_idx}] [[jump](#{link_prefix}paper-{idx})]\\\n'
+    output_string += f"## Today's Spotlight Papers\n\n{key_papers_string}\n\n---\n\n"
 
     # Render each topic's content
     for topic_idx, paper_in_topic in enumerate(paper_full_group_by_topic):
