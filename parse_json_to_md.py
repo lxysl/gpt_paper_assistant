@@ -172,10 +172,11 @@ def render_md_string(papers_dict):
                 if topic_idx > 0:
                     processed_beyond_papers.add(paper_id)
 
-    # Render today's Spotlight papers (RELEVANCE == 10 or NOVELTY == 10), with jump links to each paper
+    # Render today's Spotlight papers (high RELEVANCE AND high NOVELTY), with jump links to each paper
     key_papers_string = ""
     for i, (paper_id, paper) in enumerate(papers_dict.items()):
-        if paper["RELEVANCE"] == 10 or paper["NOVELTY"] == 10:
+        # Only highlight papers with both high relevance (≥9) and high novelty (≥8), or perfect relevance (10)
+        if (paper["RELEVANCE"] >= 9 and paper["NOVELTY"] >= 8) or paper["RELEVANCE"] == 10:
             topic_indices = extract_criterion_from_paper(paper)
             for topic_idx in topic_indices:
                 idx = i + topic_idx * topic_shift
