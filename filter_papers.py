@@ -5,13 +5,11 @@ import os
 import re
 from typing import List
 
-import retry
-from openai import OpenAI
-from google import genai
 from tqdm import tqdm
 
 from arxiv_scraper import Paper
 from arxiv_scraper import EnhancedJSONEncoder
+from ai_client_wrapper import AIClientWrapper, create_ai_client
 
 
 def filter_by_author(all_authors, papers, author_targets, config):
@@ -55,54 +53,24 @@ def filter_papers_by_hindex(all_authors, papers, config):
 
 def calc_token_usage(usage):
     """
-    返回输入和输出的token计数，处理不同客户端的usage对象
+    返回输入和输出的token计数
     """
-    if hasattr(usage, 'prompt_tokens'):
-        # OpenAI 格式
-        return {
-            "prompt_tokens": usage.prompt_tokens,
-            "completion_tokens": usage.completion_tokens,
-            "total_tokens": usage.prompt_tokens + usage.completion_tokens
-        }
-    else:
-        # Gemini 格式，返回默认值
-        return {
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0
-        }
+    return {
+        "prompt_tokens": usage.prompt_tokens,
+        "completion_tokens": usage.completion_tokens,
+        "total_tokens": usage.total_tokens
+    }
 
 
-@retry.retry(tries=3, delay=2)
-def call_chatgpt(full_prompt, ai_client, model):
-    if isinstance(ai_client, OpenAI):
-        # OpenAI 客户端
-        return ai_client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": full_prompt}],
-            temperature=0.0,
-            seed=0,
-        )
-    else:
-        # Gemini 客户端
-        return ai_client.models.generate_content(
-            model=model,
-            contents=full_prompt
-        )
+def call_chatgpt(full_prompt, ai_client: AIClientWrapper, model):
+    return ai_client.generate_completion(full_prompt, model)
 
 
-def run_and_parse_chatgpt(full_prompt, ai_client, config):
+def run_and_parse_chatgpt(full_prompt, ai_client: AIClientWrapper, config):
     # 运行AI客户端并解析JSON响应
     completion = call_chatgpt(full_prompt, ai_client, config["SELECTION"]["model"])
     
-    if isinstance(ai_client, OpenAI):
-        # OpenAI 响应格式
-        out_text = completion.choices[0].message.content
-        usage = completion.usage
-    else:
-        # Gemini 响应格式
-        out_text = completion.text
-        usage = None
+    out_text = completion.content
     
     out_text = re.sub("```jsonl\n", "", out_text)
     out_text = re.sub("```", "", out_text)
@@ -120,12 +88,9 @@ def run_and_parse_chatgpt(full_prompt, ai_client, config):
                 print("Failed to parse LM output as json")
                 print(out_text)
                 print("RAW output")
-                if isinstance(ai_client, OpenAI):
-                    print(completion.choices[0].message.content)
-                else:
-                    print(completion.text)
+                print(completion.content)
             continue
-    return json_dicts, calc_token_usage(usage) if usage else {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+    return json_dicts, calc_token_usage(completion.usage)
 
 
 def paper_to_string(paper_entry: Paper) -> str:
@@ -184,7 +149,7 @@ def limit_papers_by_score(papers_dict, sort_dict, max_papers=100):
 
 
 def filter_papers_by_title(
-    papers, config, ai_client, base_prompt, criterion
+    papers, config, ai_client: AIClientWrapper, base_prompt, criterion
 ) -> List[Paper]:
     filter_postfix = 'Identify any papers that are absolutely and completely irrelavent to the criteria, and you are absolutely sure your friend will not enjoy, formatted as a list of arxiv ids like ["ID1", "ID2", "ID3"..]. Be extremely cautious, and if you are unsure at all, do not add a paper in this list. You will check it in detail later.\n Directly respond with the list, do not add ANY extra text before or after the list. Even if every paper seems irrelevant, please keep at least TWO papers'
     batches_of_papers = batched(papers, 20)
@@ -199,12 +164,8 @@ def filter_papers_by_title(
         model = config["SELECTION"]["model"]
         completion = call_chatgpt(full_prompt, ai_client, model)
         
-        if isinstance(ai_client, OpenAI):
-            out_text = completion.choices[0].message.content
-            token_usage = calc_token_usage(completion.usage)
-        else:
-            out_text = completion.text
-            token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        out_text = completion.content
+        token_usage = calc_token_usage(completion.usage)
         
         total_prompt_tokens += token_usage["prompt_tokens"]
         total_completion_tokens += token_usage["completion_tokens"]
@@ -235,7 +196,7 @@ def paper_to_titles(paper_entry: Paper) -> str:
 
 
 def run_on_batch(
-    paper_batch, base_prompt, criterion, postfix_prompt, ai_client, config
+    paper_batch, base_prompt, criterion, postfix_prompt, ai_client: AIClientWrapper, config
 ):
     batch_str = [paper_to_string(paper) for paper in paper_batch]
     full_prompt = "\n".join(
@@ -251,7 +212,7 @@ def run_on_batch(
 
 
 def filter_by_gpt(
-    all_authors, papers, config, ai_client, all_papers, selected_papers, sort_dict
+    all_authors, papers, config, ai_client: AIClientWrapper, all_papers, selected_papers, sort_dict
 ):
     # deal with config parsing
     with open("configs/base_prompt.txt", "r") as f:
@@ -344,12 +305,12 @@ if __name__ == "__main__":
             raise ValueError(
                 "Gemini key is not set - please set GEMINI_KEY to your Gemini key"
             )
-        ai_client = genai.Client(api_key=GEMINI_KEY)
+        ai_client = create_ai_client("gemini", api_key=GEMINI_KEY)
     else:
         # 回退到 keys.ini 文件以兼容旧版本
         keyconfig = configparser.ConfigParser()
         keyconfig.read("configs/keys.ini")
-        ai_client = OpenAI(api_key=keyconfig["KEYS"]["openai"], base_url=keyconfig["KEYS"]["openai_base_url"])
+        ai_client = create_ai_client("openai", api_key=keyconfig["KEYS"]["openai"], base_url=keyconfig["KEYS"]["openai_base_url"])
     # deal with config parsing
     with open("configs/base_prompt.txt", "r") as f:
         base_prompt = f.read()

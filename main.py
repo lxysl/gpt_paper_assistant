@@ -3,8 +3,6 @@ import configparser
 import os
 import time
 
-from openai import OpenAI
-from google import genai
 from requests import Session
 from typing import TypeVar, Generator
 import io
@@ -16,6 +14,7 @@ from parse_json_to_md import render_md_string
 from push_to_slack import push_to_slack
 from arxiv_scraper import EnhancedJSONEncoder
 from push_to_google_chat import push_to_google_chat
+from ai_client_wrapper import create_ai_client
 
 T = TypeVar("T")
 
@@ -195,7 +194,7 @@ if __name__ == "__main__":
             raise ValueError(
                 "Gemini key is not set - please set GEMINI_KEY to your Gemini key"
             )
-        ai_client = genai.Client(api_key=GEMINI_KEY)
+        ai_client = create_ai_client("gemini", api_key=GEMINI_KEY)
     else:
         OAI_KEY = os.environ.get("OAI_KEY")
         BASE_URL = os.environ.get("BASE_URL")
@@ -206,7 +205,7 @@ if __name__ == "__main__":
             raise ValueError(
                 "OpenAI key is not set - please set OAI_KEY to your OpenAI key"
             )
-        ai_client = OpenAI(api_key=OAI_KEY, base_url=BASE_URL)
+        ai_client = create_ai_client("openai", api_key=OAI_KEY, base_url=BASE_URL)
     # load the author list
     with io.open("configs/authors.txt", "r") as fopen:
         author_names, author_ids = parse_authors(fopen.readlines())
